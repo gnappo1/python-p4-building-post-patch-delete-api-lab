@@ -30,16 +30,33 @@ def bakeries():
     )
     return response
 
-@app.route('/bakeries/<int:id>')
+@app.route('/bakeries/<int:id>', methods=["GET", "PATCH"])
 def bakery_by_id(id):
 
-    bakery = Bakery.query.filter_by(id=id).first()
+    bakery = Bakery.query.filter_by(id=id).first_or_404()
+    if request.method == "PATCH":
+        for attr in request.form:
+            setattr(bakery, attr, request.form.get(attr))
+        db.session.add(bakery)
+        db.session.commit()
+    
     bakery_serialized = bakery.to_dict()
-
     response = make_response(
         bakery_serialized,
         200
     )
+    return response
+
+@app.route('/baked_goods', methods=['POST'])
+def create_baked_good():
+    price = request.form.get("price")
+    name = request.form.get("name")
+    b_g = BakedGood(price=price, name=name)
+    
+    db.session.add(b_g)
+    db.session.commit()
+    
+    response = make_response(b_g.to_dict(), 201)
     return response
 
 @app.route('/baked_goods/by_price')
@@ -55,6 +72,17 @@ def baked_goods_by_price():
     )
     return response
 
+@app.route('/baked_goods/<int:id>', methods=["GET", "DELETE"])
+def baked_good(id):
+    bakedg = BakedGood.query.filter(BakedGood.id==id).first_or_404()
+    if request.method == "DELETE":
+        db.session.delete(bakedg)
+        db.session.commit()
+        response = make_response({"message": "record successfully deleted"}, 200)
+        return response
+    response = make_response(bakedg.to_dict(), 200)
+    return response
+    
 @app.route('/baked_goods/most_expensive')
 def most_expensive_baked_good():
     most_expensive = BakedGood.query.order_by(BakedGood.price.desc()).limit(1).first()
